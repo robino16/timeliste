@@ -1,319 +1,263 @@
-import { endianness } from "os";
-import React, { useEffect, useState } from "react";
-import { Checkbox, Header, Input, Segment } from "semantic-ui-react";
+import { useEffect, useState } from "react";
+import {
+  Button,
+  Checkbox,
+  Divider,
+  Grid,
+  Header,
+  Segment,
+} from "semantic-ui-react";
+import { Days, DayValue, Months, Time } from "../definitions/definitions";
 import TimePicker from "./TimePicker";
 
 interface IDayProps {
   date: Date;
+  onChange: (value: DayValue) => void;
 }
-
-interface Time {
-  hour: number;
-  minute: number;
-}
-
-interface DayValue {
-  start: Time;
-  end: Time;
-  lunch: boolean;
-}
-
-const options = [
-  {
-    key: 1,
-    text: "Januar",
-    value: 1,
-    content: "Januar",
-  },
-  {
-    key: 2,
-    text: "Feburar",
-    value: 2,
-    content: "Feburar",
-  },
-  {
-    key: 3,
-    text: "Mars",
-    value: 3,
-    content: "Mars",
-  },
-  {
-    key: 4,
-    text: "April",
-    value: 4,
-    content: "April",
-  },
-  {
-    key: 5,
-    text: "Mai",
-    value: 5,
-    content: "Mai",
-  },
-  {
-    key: 6,
-    text: "Juni",
-    value: 6,
-    content: "Juni",
-  },
-  {
-    key: 7,
-    text: "Juli",
-    value: 7,
-    content: "Juli",
-  },
-  {
-    key: 8,
-    text: "August",
-    value: 8,
-    content: "August",
-  },
-  {
-    key: 9,
-    text: "September",
-    value: 9,
-    content: "September",
-  },
-  {
-    key: 10,
-    text: "Oktober",
-    value: 10,
-    content: "Oktober",
-  },
-  {
-    key: 11,
-    text: "November",
-    value: 11,
-    content: "November",
-  },
-  {
-    key: 12,
-    text: "Desember",
-    value: 12,
-    content: "Desember",
-  },
-];
 
 const Day = (props: IDayProps) => {
-  const [start, setStart] = useState<Time>({ hour: 0, minute: 0 });
-  const [end, setEnd] = useState<Time>({ hour: 0, minute: 0 });
+  const [workedThatDay, setWorkedThatDay] = useState<boolean>(false);
+  const [startTime, setStartTime] = useState<Time>({ hour: 8, minute: 0 });
+  const [endTime, setEndTime] = useState<Time>({ hour: 16, minute: 0 });
   const [lunchTime, setLunchTime] = useState<Time>({ hour: 12, minute: 0 });
-  const [lunch, setLunch] = useState<boolean>(true);
-  const [hoursWorked, setHoursWorked] = useState<number>(0);
-  const [kveldstillegg, setKveldstillegg] = useState<number>(0);
-  const [helgeTillegg, setHelgetillegg] = useState<number>(0);
+  const [hadLunch, setHadLunch] = useState<boolean>(true);
+  const [totalHoursWorked, setTotalHoursWorked] = useState<number>(0);
+  const [eveningHours, setEveningHours] = useState<number>(0);
+  const [weekendHours, setWeekendHours] = useState<number>(0);
+  const [workedTillNextDay, setWorkedTillNextDay] = useState<boolean>(false);
+  const [lunchError, setLunchError] = useState<string | undefined>(undefined);
 
-  const calcHours = (): number => {
-    const a = start.hour + start.minute / 60;
-    const b = end.hour + end.minute / 60;
-    if (b < a) {
-      // worked till next day ?
-      const c = 24 - a;
-      const res = c + b;
-      return lunch ? res - 0.5 : res;
-    } else {
-      const res = b - a;
-      return lunch ? res - 0.5 : res;
+  const calc2 = () => {
+    if (!workedThatDay) {
+      setHadLunch(false);
+      setTotalHoursWorked(0.0);
+      setEveningHours(0.0);
+      setWeekendHours(0.0);
+
+      props.onChange({
+        workedThatDay: true,
+        totalHoursWorked: 0.0,
+        eveningHours: 0.0,
+        weekendHours: 0.0,
+        date: props.date,
+        error: false,
+      });
+
+      return;
     }
-  };
 
-  const nextDay = (): boolean => {
-    const a = start.hour + start.minute / 60;
-    const b = end.hour + end.minute / 60;
-    return b < a;
-  };
+    const start = startTime.hour + startTime.minute / 60; // in hours
+    const end = endTime.hour + endTime.minute / 60; // in hours
+    const lunch = lunchTime.hour + lunchTime.minute / 60; // in hours
+    const eveningThreshold = 17; // o'clock
+    const newWorkedTillNextDay = end < start;
+    const day = props.date.getDay();
+    const startDayIsWeekend = day === 0 || day === 6; // 0 is sunday, 6 is saturday
+    const lunchInEvening = Math.max(
+      0,
+      lunch + 0.5 - Math.max(eveningThreshold, lunch)
+    );
 
-  const calcHelgetillegg = (): number => {
-    const a = start.hour + start.minute / 60;
-    const b = end.hour + end.minute / 60;
+    var newTotalHoursWorked = 0.0;
+    var newEveningHours = 0.0;
+    var newWeekendHours = 0.0;
 
-    if (b < a) {
-      const startDayIsWeekend =
-        props.date.getDay() === 6 || props.date.getDay() == 0;
-      const endDayIsWeekend =
-        props.date.getDay() === 6 || props.date.getDay() === 5;
-      var res = 0.0;
+    if (newWorkedTillNextDay) {
+      const endDayIsWeekend = day === 5 || day === 6; // 5 is friday, 6 is saturday
+      var hoursWorkedFirstDay = 24 - start;
+      var hoursWorkedSecondDay = end;
+      if (hadLunch) {
+        hoursWorkedFirstDay -= 0.5;
+      }
+
+      hoursWorkedFirstDay = Math.max(0.0, hoursWorkedFirstDay);
+      newTotalHoursWorked = hoursWorkedFirstDay + hoursWorkedSecondDay;
       if (startDayIsWeekend) {
-        res += 24 - a;
-      }
-      if (endDayIsWeekend) {
-        res += b;
-      }
-      return res;
-    } else {
-      const isWeekend = props.date.getDay() === 6 || props.date.getDay() == 0;
-      if (isWeekend) {
-        return b - a;
-      }
-    }
+        newWeekendHours += hoursWorkedFirstDay;
+      } else {
+        if (start >= eveningThreshold) {
+          newEveningHours += hoursWorkedFirstDay;
+        } else if (end > eveningThreshold) {
+          newEveningHours += end - eveningThreshold;
+          if (hadLunch) {
+            newEveningHours -= lunchInEvening;
+          }
 
-    return 0;
-  };
-
-  const calcKveldstillegg = (): number => {
-    const a = start.hour + start.minute / 60;
-    const b = end.hour + end.minute / 60;
-    const threshold = 17;
-    if (b < a) {
-      // worked till next day ?
-      const startDayIsWeekend =
-        props.date.getDay() === 6 || props.date.getDay() == 0;
-      const endDayIsWeekend =
-        props.date.getDay() === 6 || props.date.getDay() === 5;
-
-      var firstDayKveldstillegg = 0.0;
-      if (!startDayIsWeekend) {
-        if (a < threshold) {
-          firstDayKveldstillegg += 24 - threshold;
-        } else {
-          firstDayKveldstillegg += 24 - a;
+          newEveningHours = Math.max(0, newEveningHours);
         }
       }
 
-      var secondDayKveldstillegg = 0.0;
-      if (!endDayIsWeekend) {
-        secondDayKveldstillegg += b;
+      if (endDayIsWeekend) {
+        newWeekendHours += hoursWorkedSecondDay;
+      } else {
+        newEveningHours += hoursWorkedSecondDay;
+      }
+    } else {
+      newTotalHoursWorked = end - start;
+      if (hadLunch) {
+        newTotalHoursWorked -= 0.5;
       }
 
-      return firstDayKveldstillegg + secondDayKveldstillegg;
+      newTotalHoursWorked = Math.max(0.0, newTotalHoursWorked);
+      if (startDayIsWeekend) {
+        newWeekendHours = newTotalHoursWorked;
+      } else {
+        if (start >= eveningThreshold) {
+          newEveningHours = newTotalHoursWorked;
+        } else if (end > eveningThreshold) {
+          newEveningHours = end - eveningThreshold;
+          if (hadLunch) {
+            newEveningHours -= lunchInEvening;
+          }
+
+          newEveningHours = Math.max(0, newEveningHours);
+        }
+      }
     }
 
-    const isWeekend = props.date.getDay() === 6 || props.date.getDay() == 0;
-    if (isWeekend) {
-      return 0;
+    setTotalHoursWorked(newTotalHoursWorked);
+    setEveningHours(newEveningHours);
+    setWeekendHours(newWeekendHours);
+    setWorkedTillNextDay(newWorkedTillNextDay);
+
+    if (newTotalHoursWorked === 0) {
+      setLunchError("Du har jobbet 0 timer.");
+    } else if (newTotalHoursWorked < 0.5) {
+      setLunchError("Du har jobbet mindre enn 0.5 timer.");
+    } else if (start > 23.5) {
+      setLunchError("Du kan jo ikke ha lunsj midt på svarte natta!");
+    } else if (lunch > end - 0.5) {
+      setLunchError("Du kan ikke ha lunsj etter du var ferdig på jobb 🤔");
+    } else if (lunch < start) {
+      setLunchError("Du kan ikke ha lunsj på dag nr. 2 vel?");
+    } else {
+      setLunchError(undefined);
     }
 
-    if (b < threshold) {
-      return 0;
-    }
-
-    if (a < threshold) {
-      return b - threshold;
-    }
-
-    if (a >= threshold) {
-      return b - a;
-    }
-
-    return 0;
+    props.onChange({
+      workedThatDay: true,
+      totalHoursWorked: newTotalHoursWorked,
+      eveningHours: newEveningHours,
+      weekendHours: newWeekendHours,
+      date: props.date,
+      error: lunchError !== undefined,
+    });
   };
 
   useEffect(() => {
-    setHoursWorked(calcHours());
-    setKveldstillegg(calcKveldstillegg());
-    setHelgetillegg(calcHelgetillegg());
-  }, [start, end, lunch]);
+    calc2();
+  }, [startTime, endTime, hadLunch, lunchTime]);
 
   const renderTitle = () => {
-    switch (props.date.getDay()) {
-      case 0:
-        return (
-          <Header as="h4" color="red">
-            Søndag {props.date.getDate()}.{" "}
-            {options.find((x) => x.value - 1 === props.date.getMonth())?.text}{" "}
-            {props.date.getFullYear()}
-          </Header>
-        );
-      case 1:
-        return (
-          <Header as="h4">
-            Mandag {props.date.getDate()}.{" "}
-            {options.find((x) => x.value - 1 === props.date.getMonth())?.text}{" "}
-            {props.date.getFullYear()}
-          </Header>
-        );
-      case 2:
-        return (
-          <Header as="h4">
-            Tirsdag {props.date.getDate()}.{" "}
-            {options.find((x) => x.value - 1 === props.date.getMonth())?.text}{" "}
-            {props.date.getFullYear()}
-          </Header>
-        );
-      case 3:
-        return (
-          <Header as="h4">
-            Onsdag {props.date.getDate()}.{" "}
-            {options.find((x) => x.value - 1 === props.date.getMonth())?.text}{" "}
-            {props.date.getFullYear()}
-          </Header>
-        );
-      case 4:
-        return (
-          <Header as="h4">
-            Torsdag {props.date.getDate()}.{" "}
-            {options.find((x) => x.value - 1 === props.date.getMonth())?.text}{" "}
-            {props.date.getFullYear()}
-          </Header>
-        );
-      case 5:
-        return (
-          <Header as="h4">
-            Fredag {props.date.getDate()}.{" "}
-            {options.find((x) => x.value - 1 === props.date.getMonth())?.text}{" "}
-            {props.date.getFullYear()}
-          </Header>
-        );
-      case 6:
-        return (
-          <Header as="h4" color="red">
-            Lørdag {props.date.getDate()}.{" "}
-            {options.find((x) => x.value - 1 === props.date.getMonth())?.text}{" "}
-            {props.date.getFullYear()}
-          </Header>
-        );
-      default:
-        return "Invalid";
-    }
+    const day = Days.find((x) => x.key === props.date.getDay());
+    return (
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <Header as="h3" style={{ opacity: workedThatDay ? "1.0" : "0.4" }}>
+          {day?.text} {props.date.getDate()}.{" "}
+          {Months.find((x) => x.value - 1 === props.date.getMonth())?.text}{" "}
+          {props.date.getFullYear()}
+        </Header>
+
+        {!workedThatDay && (
+          <Button
+            primary
+            onClick={() => {
+              setHadLunch(true);
+              setWorkedThatDay(true);
+            }}
+          >
+            Legg til
+          </Button>
+        )}
+
+        {workedThatDay && (
+          <Button
+            onClick={() => setWorkedThatDay(false)}
+            style={{ marginBottom: "1rem" }}
+          >
+            Fjern
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  const render = () => {
+    return (
+      <>
+        <Grid doubling columns={5}>
+          <Grid.Column>
+            <Header as="h4">Startet</Header>
+            <TimePicker
+              value={startTime}
+              onChange={(time: Time): void => {
+                setStartTime(time);
+              }}
+            />
+          </Grid.Column>
+
+          <Grid.Column>
+            <Header as="h4">Sluttet</Header>
+            <TimePicker
+              value={endTime}
+              onChange={(time: Time): void => {
+                setEndTime(time);
+              }}
+            />
+            {workedTillNextDay && (
+              <p>
+                <i>Dagen etter</i>
+              </p>
+            )}
+          </Grid.Column>
+
+          <Grid.Column>
+            <Header as="h4">Lunsj</Header>
+            <Checkbox
+              label="0.5 timer lunsj"
+              checked={hadLunch}
+              onChange={(e, data) => setHadLunch(!hadLunch)}
+            />
+          </Grid.Column>
+
+          {hadLunch && (
+            <Grid.Column>
+              <Header as="h4">Tidspunkt for lunsj</Header>
+              <TimePicker
+                value={lunchTime}
+                min={{ hour: startTime.hour + 3, minute: startTime.minute }}
+                max={workedTillNextDay ? { hour: 23, minute: 30 } : endTime}
+                onChange={(time: Time): void => {
+                  setLunchTime(time);
+                }}
+              />
+              {lunchError && <p style={{ color: "red" }}>{lunchError}</p>}
+            </Grid.Column>
+          )}
+        </Grid>
+        <Divider />
+        <Header as="h4">Oppsummert</Header>
+        <p>
+          Du jobbet fra {String(startTime.hour).padStart(2, "0")}:
+          {String(startTime.minute).padStart(2, "0")} til{" "}
+          {String(endTime.hour).padStart(2, "0")}:
+          {String(endTime.minute).padStart(2, "0")}
+          {workedTillNextDay && " dagen etter"}.{" "}
+        </p>
+        <p>
+          {`Du jobbet ${totalHoursWorked.toFixed(2)} timer.`}{" "}
+          {hadLunch ? "Hvorav 0.5 timer lunsj." : "Uten lunsj."}
+        </p>
+        <p>Kveldstillegg: {eveningHours.toFixed(2)} timer.</p>
+        <p>Helgetillegg: {weekendHours.toFixed(2)} timer.</p>
+      </>
+    );
   };
 
   return (
-    <Segment key={props.date.getTime()}>
+    <Segment key={props.date.getTime()} style={{ backgroundColor: "#eee" }}>
       {renderTitle()}
-      <Header as="h5">Start</Header>
-      <TimePicker
-        onChange={(time: Time): void => {
-          setStart(time);
-        }}
-      />
-      <Header as="h5">Slutt</Header>
-      <TimePicker
-        onChange={(time: Time): void => {
-          setEnd(time);
-        }}
-      />
-      {nextDay() && <p>Dagen etter</p>}
-      <Header as="h5">Lunsj</Header>
-      <Checkbox
-        label="0.5 timer lunsj"
-        checked={lunch}
-        onChange={(e, data) => setLunch(!lunch)}
-      />
-      <br />
-      {lunch && (
-        <>
-          <p>Lunsj startet:</p>
-          <TimePicker
-            value={lunchTime}
-            onChange={(time: Time): void => {
-              setLunchTime(time);
-            }}
-          />
-        </>
-      )}
-      <Header as="h5">Oppsummert</Header>
-      <p>
-        Du jobbet fra {String(start.hour).padStart(2, "0")}:
-        {String(start.minute).padStart(2, "0")} til{" "}
-        {String(end.hour).padStart(2, "0")}:
-        {String(end.minute).padStart(2, "0")}
-        {nextDay() && " dagen etter"}.{" "}
-        <p>
-          {`Dette blir ca. ${hoursWorked.toFixed(2)} timer.`}{" "}
-          {lunch ? "Og 0.5 timer lunsj." : "Uten lunsj."}
-        </p>
-        <p>Kveldstillegg: {kveldstillegg.toFixed(2)} timer.</p>
-        <p>Helgetillegg: {helgeTillegg.toFixed(2)} timer.</p>
-      </p>
+      {workedThatDay && render()}
     </Segment>
   );
 };
