@@ -5,6 +5,7 @@ import {
   Dropdown,
   Grid,
   Header,
+  Icon,
   Input,
   Segment,
 } from "semantic-ui-react";
@@ -32,7 +33,6 @@ function App() {
   const [page, setPage] = useState<number>(1);
   const [days, setDays] = useState<Array<Date>>([]);
   const [values, setValues] = useState<Array<DayValue>>([]);
-  const [error, setError] = useState<boolean>(false);
 
   const [totalHoursWorked, setTotalHoursWorked] = useState<number>(0.0);
   const [totalWeekendHours, setTotalWeekendHours] = useState<number>(0.0);
@@ -63,10 +63,9 @@ function App() {
           ></Input>
         </Grid.Column>
 
-        <Grid.Column></Grid.Column>
-
-        <Grid.Row style={{ marginLeft: "1rem", paddin: "0" }}>
+        <Grid.Row>
           <Button
+            style={{ marginLeft: "1rem", marginBottom: "1rem" }}
             primary
             onClick={() => {
               setDays(getDaysInMonth(month - 1, year));
@@ -85,6 +84,7 @@ function App() {
               setPage(2);
             }}
           >
+            <Icon name="check" />
             OK, fortsett
           </Button>
         </Grid.Row>
@@ -106,7 +106,7 @@ function App() {
 
   const onChange = (value: DayValue) => {
     var newValues = values.filter(
-      (x) => x.date.getDate() !== value.date.getDate()
+      (x) => x.date.getDate() !== value.date.getDate() && value.workedThatDay
     );
     newValues.push(value);
     setValues(newValues);
@@ -184,6 +184,7 @@ function App() {
                 setPage(1);
               }}
             >
+              <Icon name="angle left" />
               Gå tilbake
             </Button>
           )}

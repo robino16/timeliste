@@ -5,6 +5,7 @@ import {
   Divider,
   Grid,
   Header,
+  Icon,
   Segment,
 } from "semantic-ui-react";
 import { Days, DayValue, Months, Time } from "../definitions/definitions";
@@ -122,15 +123,19 @@ const Day = (props: IDayProps) => {
     setWorkedTillNextDay(newWorkedTillNextDay);
 
     if (newTotalHoursWorked === 0) {
-      setLunchError("Du har jobbet 0 timer.");
+      setLunchError("Du kan ikke jobbe null timer.");
+    } else if (lunch && newTotalHoursWorked < 5.5) {
+      setLunchError(
+        "Obs: Man har ikke krav på lunsj om man jobber mindre enn 5.5 timer."
+      );
     } else if (newTotalHoursWorked < 0.5) {
       setLunchError("Du har jobbet mindre enn 0.5 timer.");
     } else if (start > 23.5) {
       setLunchError("Du kan jo ikke ha lunsj midt på svarte natta!");
-    } else if (lunch > end - 0.5) {
+    } else if (!workedTillNextDay && lunch > end - 0.5) {
       setLunchError("Du kan ikke ha lunsj etter du var ferdig på jobb 🤔");
     } else if (lunch < start) {
-      setLunchError("Du kan ikke ha lunsj på dag nr. 2 vel?");
+      setLunchError("Du kan ikke ha lunsj før du startet på jobb vel? 🤔");
     } else {
       setLunchError(undefined);
     }
@@ -147,7 +152,7 @@ const Day = (props: IDayProps) => {
 
   useEffect(() => {
     calc2();
-  }, [startTime, endTime, hadLunch, lunchTime]);
+  }, [startTime, endTime, hadLunch, lunchTime, workedThatDay]);
 
   const renderTitle = () => {
     const day = Days.find((x) => x.key === props.date.getDay());
@@ -168,6 +173,7 @@ const Day = (props: IDayProps) => {
               setWorkedThatDay(true);
             }}
           >
+            <Icon name="plus" />
             Legg til
           </Button>
         )}
@@ -178,6 +184,7 @@ const Day = (props: IDayProps) => {
               onClick={() => setHidden(!hidden)}
               style={{ marginBottom: "1rem" }}
             >
+              <Icon name={hidden ? `angle down` : `angle up`} />
               {hidden ? "Vis" : "Skjul"}
             </Button>
 
@@ -188,6 +195,7 @@ const Day = (props: IDayProps) => {
               }}
               style={{ marginBottom: "1rem" }}
             >
+              <Icon name="times" />
               Fjern
             </Button>
           </div>
@@ -259,31 +267,23 @@ const Day = (props: IDayProps) => {
         <Divider />
         <Grid doubling columns={4}>
           <Grid.Column>
-            <Segment>
-              <Header as="h5">Arbeid</Header>
-              <p>{totalHoursWorked.toFixed(2)} timer.</p>
-            </Segment>
+            <Header as="h5">Arbeid</Header>
+            <p>{totalHoursWorked.toFixed(2)} timer.</p>
           </Grid.Column>
 
           <Grid.Column>
-            <Segment>
-              <Header as="h5">Lunsj</Header>
-              <p>{hadLunch ? "0.50" : "0.00"} timer.</p>
-            </Segment>
+            <Header as="h5">Lunsj</Header>
+            <p>{hadLunch ? "0.50" : "0.00"} timer.</p>
           </Grid.Column>
 
           <Grid.Column>
-            <Segment>
-              <Header as="h5">Kveldstillegg</Header>
-              <p>{eveningHours.toFixed(2)} timer.</p>
-            </Segment>
+            <Header as="h5">Kveldstillegg</Header>
+            <p>{eveningHours.toFixed(2)} timer.</p>
           </Grid.Column>
 
           <Grid.Column>
-            <Segment>
-              <Header as="h5">Helgetillegg</Header>
-              <p>{weekendHours.toFixed(2)} timer.</p>
-            </Segment>
+            <Header as="h5">Helgetillegg</Header>
+            <p>{weekendHours.toFixed(2)} timer.</p>
           </Grid.Column>
         </Grid>
       </>
