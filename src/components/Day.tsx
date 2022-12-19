@@ -16,6 +16,7 @@ interface IDayProps {
 }
 
 const Day = (props: IDayProps) => {
+  const [hidden, setHidden] = useState<boolean>(false);
   const [workedThatDay, setWorkedThatDay] = useState<boolean>(false);
   const [startTime, setStartTime] = useState<Time>({ hour: 8, minute: 0 });
   const [endTime, setEndTime] = useState<Time>({ hour: 16, minute: 0 });
@@ -163,6 +164,7 @@ const Day = (props: IDayProps) => {
             primary
             onClick={() => {
               setHadLunch(true);
+              setHidden(false);
               setWorkedThatDay(true);
             }}
           >
@@ -171,12 +173,24 @@ const Day = (props: IDayProps) => {
         )}
 
         {workedThatDay && (
-          <Button
-            onClick={() => setWorkedThatDay(false)}
-            style={{ marginBottom: "1rem" }}
-          >
-            Fjern
-          </Button>
+          <div>
+            <Button
+              onClick={() => setHidden(!hidden)}
+              style={{ marginBottom: "1rem" }}
+            >
+              {hidden ? "Vis" : "Skjul"}
+            </Button>
+
+            <Button
+              onClick={() => {
+                setWorkedThatDay(false);
+                setHidden(false);
+              }}
+              style={{ marginBottom: "1rem" }}
+            >
+              Fjern
+            </Button>
+          </div>
         )}
       </div>
     );
@@ -235,8 +249,6 @@ const Day = (props: IDayProps) => {
             </Grid.Column>
           )}
         </Grid>
-        <Divider />
-        <Header as="h4">Oppsummert</Header>
         <p>
           Du jobbet fra {String(startTime.hour).padStart(2, "0")}:
           {String(startTime.minute).padStart(2, "0")} til{" "}
@@ -244,12 +256,36 @@ const Day = (props: IDayProps) => {
           {String(endTime.minute).padStart(2, "0")}
           {workedTillNextDay && " dagen etter"}.{" "}
         </p>
-        <p>
-          {`Du jobbet ${totalHoursWorked.toFixed(2)} timer.`}{" "}
-          {hadLunch ? "Hvorav 0.5 timer lunsj." : "Uten lunsj."}
-        </p>
-        <p>Kveldstillegg: {eveningHours.toFixed(2)} timer.</p>
-        <p>Helgetillegg: {weekendHours.toFixed(2)} timer.</p>
+        <Divider />
+        <Grid doubling columns={4}>
+          <Grid.Column>
+            <Segment>
+              <Header as="h5">Arbeid</Header>
+              <p>{totalHoursWorked.toFixed(2)} timer.</p>
+            </Segment>
+          </Grid.Column>
+
+          <Grid.Column>
+            <Segment>
+              <Header as="h5">Lunsj</Header>
+              <p>{hadLunch ? "0.50" : "00"} timer.</p>
+            </Segment>
+          </Grid.Column>
+
+          <Grid.Column>
+            <Segment>
+              <Header as="h5">Kveldstillegg</Header>
+              <p>{eveningHours.toFixed(2)} timer.</p>
+            </Segment>
+          </Grid.Column>
+
+          <Grid.Column>
+            <Segment>
+              <Header as="h5">Helgetillegg</Header>
+              <p>{weekendHours.toFixed(2)} timer.</p>
+            </Segment>
+          </Grid.Column>
+        </Grid>
       </>
     );
   };
@@ -257,7 +293,17 @@ const Day = (props: IDayProps) => {
   return (
     <Segment key={props.date.getTime()} style={{ backgroundColor: "#eee" }}>
       {renderTitle()}
-      {workedThatDay && render()}
+      {workedThatDay && !hidden && render()}
+      {workedThatDay && hidden && (
+        <>
+          <p>
+            {`${totalHoursWorked.toFixed(2)} timer arbeid `}{" "}
+            {hadLunch ? "med 0.5 timer lunsj. " : "uten lunsj. "}
+            Kveldstillegg: {eveningHours.toFixed(2)} timer. Helgetillegg:{" "}
+            {weekendHours.toFixed(2)} timer.
+          </p>
+        </>
+      )}
     </Segment>
   );
 };
