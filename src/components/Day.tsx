@@ -268,7 +268,7 @@ const Day = (props: IDayProps) => {
           <Grid.Column>
             <Segment>
               <Header as="h5">Lunsj</Header>
-              <p>{hadLunch ? "0.50" : "00"} timer.</p>
+              <p>{hadLunch ? "0.50" : "0.00"} timer.</p>
             </Segment>
           </Grid.Column>
 

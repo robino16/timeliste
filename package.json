@@ -1,7 +1,7 @@
 {
   "name": "timeliste",
-  "homepage": "https://robino16.github.io/timeliste/",
   "version": "0.1.0",
+  "homepage": "https://robino16.github.io/timeliste",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^5.16.5",
