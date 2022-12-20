@@ -3,8 +3,6 @@ import { Input } from "semantic-ui-react";
 import { Time } from "../definitions/definitions";
 
 interface TimePickerProps {
-  min?: Time;
-  max?: Time;
   value?: Time;
   onChange: (time: Time) => void;
 }
@@ -18,28 +16,6 @@ const TimePicker = (props: TimePickerProps) => {
   }, [hour, minute]);
 
   useEffect(() => {}, [props.value]);
-
-  // useEffect(() => {
-  //   if (props.min) {
-  //     const minConverted = props.min.hour + props.min.minute / 60;
-  //     const thisConverted = hour + minute / 60;
-  //     if (minConverted > thisConverted) {
-  //       setHour(props.min.hour);
-  //       setMinute(props.min.minute);
-  //     }
-  //   }
-  // }, [props.min]);
-
-  // useEffect(() => {
-  //   if (props.max) {
-  //     const maxConverted = props.max.hour + props.max.minute / 60;
-  //     const thisConverted = hour + minute / 60;
-  //     if (maxConverted < thisConverted) {
-  //       setHour(props.max.hour);
-  //       setMinute(props.max.minute);
-  //     }
-  //   }
-  // }, [props.max]);
 
   return (
     <div style={{ display: "flex", marginBottom: "1rem" }}>
@@ -69,8 +45,18 @@ const TimePicker = (props: TimePickerProps) => {
           var newVal = +(data.value ?? "0");
           if (newVal > 59) {
             newVal = 0;
+            var newHour = hour + 1;
+            if (newHour > 23) {
+              newHour = 0;
+            }
+            setHour(newHour);
           } else if (newVal < 0) {
             newVal = 59;
+            var newHour = hour - 1;
+            if (newHour < 0) {
+              newHour = 23;
+            }
+            setHour(newHour);
           }
           setMinute(newVal);
         }}

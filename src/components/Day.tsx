@@ -6,6 +6,7 @@ import {
   Grid,
   Header,
   Icon,
+  Message,
   Segment,
 } from "semantic-ui-react";
 import { Days, DayValue, Months, Time } from "../definitions/definitions";
@@ -21,15 +22,22 @@ const Day = (props: IDayProps) => {
   const [workedThatDay, setWorkedThatDay] = useState<boolean>(false);
   const [startTime, setStartTime] = useState<Time>({ hour: 8, minute: 0 });
   const [endTime, setEndTime] = useState<Time>({ hour: 16, minute: 0 });
-  const [lunchTime, setLunchTime] = useState<Time>({ hour: 12, minute: 0 });
+  const [lunchStartTime, setLunchTime] = useState<Time>({
+    hour: 12,
+    minute: 0,
+  });
   const [hadLunch, setHadLunch] = useState<boolean>(true);
   const [totalHoursWorked, setTotalHoursWorked] = useState<number>(0);
   const [eveningHours, setEveningHours] = useState<number>(0);
   const [weekendHours, setWeekendHours] = useState<number>(0);
   const [workedTillNextDay, setWorkedTillNextDay] = useState<boolean>(false);
-  const [lunchError, setLunchError] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<string | undefined>(undefined);
 
-  const calc2 = () => {
+  function convert(time: Time): number {
+    return time.hour + time.minute / 60;
+  }
+
+  const calculateValues = () => {
     if (!workedThatDay) {
       setHadLunch(false);
       setTotalHoursWorked(0.0);
@@ -48,74 +56,87 @@ const Day = (props: IDayProps) => {
       return;
     }
 
-    const start = startTime.hour + startTime.minute / 60; // in hours
-    const end = endTime.hour + endTime.minute / 60; // in hours
-    const lunch = lunchTime.hour + lunchTime.minute / 60; // in hours
-    const eveningThreshold = 17; // o'clock
-    const newWorkedTillNextDay = end < start;
+    const startTimeConverted = convert(startTime);
+    const endTimeConverted = convert(endTime);
+    const lunchDuration = hadLunch ? 0.5 : 0.0; // hours
+    const lunchStartTimeConverted = convert(lunchStartTime);
+    var lunchEndTimeConverted = convert(lunchStartTime) + lunchDuration;
+    if (lunchEndTimeConverted > 24) {
+      lunchEndTimeConverted -= 24;
+    }
+
+    const lunchSplit = lunchEndTimeConverted < lunchStartTimeConverted;
+    const hadLunchTodayOnly = lunchStartTimeConverted > startTimeConverted;
+    const hadLunchNextDayOnly = lunchEndTimeConverted < startTimeConverted;
+    const timeWhenEveningStarts = 17; // o'clock
+    const timeWhenEveningEnds = 6; // o'clock (next day)
+    // we simply assume you've worked to the next day if endTime < startTime
+    // because who would ever work more than 24 hours?
+    const newWorkedTillNextDay = endTimeConverted < startTimeConverted;
     const day = props.date.getDay();
     const startDayIsWeekend = day === 0 || day === 6; // 0 is sunday, 6 is saturday
-    const lunchInEvening = Math.max(
-      0,
-      lunch + 0.5 - Math.max(eveningThreshold, lunch)
-    );
+    const endDayIsWeekend = day === 5 || day === 6; // 5 is friday, 6 is saturday
+
+    var todaysLunchTime = 0.0;
+    var nextDayLunchTime = 0.0;
+    var lunchTimeInEvening = 0.0;
+    if (hadLunch) {
+      if (lunchSplit) {
+        todaysLunchTime += 24 - lunchStartTimeConverted;
+        nextDayLunchTime += lunchEndTimeConverted;
+        lunchTimeInEvening += lunchDuration;
+      } else if (hadLunchTodayOnly) {
+        todaysLunchTime += lunchDuration;
+        lunchTimeInEvening += Math.max(
+          0,
+          lunchEndTimeConverted -
+            Math.max(timeWhenEveningStarts, lunchStartTimeConverted)
+        );
+      } else if (hadLunchNextDayOnly) {
+        nextDayLunchTime += lunchDuration;
+        lunchTimeInEvening += Math.max(
+          0,
+          lunchStartTimeConverted -
+            Math.max(timeWhenEveningEnds, lunchEndTimeConverted)
+        );
+      }
+    }
 
     var newTotalHoursWorked = 0.0;
     var newEveningHours = 0.0;
     var newWeekendHours = 0.0;
-
     if (newWorkedTillNextDay) {
-      const endDayIsWeekend = day === 5 || day === 6; // 5 is friday, 6 is saturday
-      var hoursWorkedFirstDay = 24 - start;
-      var hoursWorkedSecondDay = end;
-      if (hadLunch) {
-        hoursWorkedFirstDay -= 0.5;
-      }
-
-      hoursWorkedFirstDay = Math.max(0.0, hoursWorkedFirstDay);
-      newTotalHoursWorked = hoursWorkedFirstDay + hoursWorkedSecondDay;
+      const hoursWorkedToday = 24 - startTimeConverted - todaysLunchTime;
+      const hoursWorkedNextDay = endTimeConverted - nextDayLunchTime;
+      newTotalHoursWorked = hoursWorkedToday + hoursWorkedNextDay;
       if (startDayIsWeekend) {
-        newWeekendHours += hoursWorkedFirstDay;
-      } else {
-        if (start >= eveningThreshold) {
-          newEveningHours += hoursWorkedFirstDay;
-        } else if (end > eveningThreshold) {
-          newEveningHours += end - eveningThreshold;
-          if (hadLunch) {
-            newEveningHours -= lunchInEvening;
-          }
-
-          newEveningHours = Math.max(0, newEveningHours);
-        }
+        newWeekendHours += hoursWorkedToday;
       }
 
       if (endDayIsWeekend) {
-        newWeekendHours += hoursWorkedSecondDay;
-      } else {
-        newEveningHours += hoursWorkedSecondDay;
+        newWeekendHours += hoursWorkedNextDay;
       }
+
+      newEveningHours +=
+        24 - Math.max(timeWhenEveningStarts, startTimeConverted);
+      newEveningHours += Math.min(timeWhenEveningEnds, endTimeConverted);
+      newEveningHours -= lunchTimeInEvening;
     } else {
-      newTotalHoursWorked = end - start;
-      if (hadLunch) {
-        newTotalHoursWorked -= 0.5;
-      }
-
-      newTotalHoursWorked = Math.max(0.0, newTotalHoursWorked);
+      newTotalHoursWorked =
+        endTimeConverted - startTimeConverted - lunchDuration;
+      newEveningHours +=
+        Math.max(
+          0,
+          endTimeConverted - Math.max(timeWhenEveningStarts, startTimeConverted)
+        ) - lunchTimeInEvening;
       if (startDayIsWeekend) {
-        newWeekendHours = newTotalHoursWorked;
-      } else {
-        if (start >= eveningThreshold) {
-          newEveningHours = newTotalHoursWorked;
-        } else if (end > eveningThreshold) {
-          newEveningHours = end - eveningThreshold;
-          if (hadLunch) {
-            newEveningHours -= lunchInEvening;
-          }
-
-          newEveningHours = Math.max(0, newEveningHours);
-        }
+        newWeekendHours += newTotalHoursWorked;
       }
     }
+
+    newTotalHoursWorked = Math.max(0, newTotalHoursWorked);
+    newEveningHours = Math.max(0, newEveningHours);
+    newWeekendHours = Math.max(0, newWeekendHours);
 
     setTotalHoursWorked(newTotalHoursWorked);
     setEveningHours(newEveningHours);
@@ -123,21 +144,35 @@ const Day = (props: IDayProps) => {
     setWorkedTillNextDay(newWorkedTillNextDay);
 
     if (newTotalHoursWorked === 0) {
-      setLunchError("Du kan ikke jobbe null timer.");
-    } else if (lunch && newTotalHoursWorked < 5.5) {
-      setLunchError(
-        "Obs: Man har ikke krav på lunsj om man jobber mindre enn 5.5 timer."
+      setError("Du kan ikke ha jobbet i null timer.");
+    } else if (hadLunch && newTotalHoursWorked < 5.5) {
+      setError(
+        "Obs: Du har ikke krav på lunsj om du jobbet mindre enn 5.5 timer."
       );
-    } else if (newTotalHoursWorked < 0.5) {
-      setLunchError("Du har jobbet mindre enn 0.5 timer.");
-    } else if (start > 23.5) {
-      setLunchError("Du kan jo ikke ha lunsj midt på svarte natta!");
-    } else if (!workedTillNextDay && lunch > end - 0.5) {
-      setLunchError("Du kan ikke ha lunsj etter du var ferdig på jobb 🤔");
-    } else if (lunch < start) {
-      setLunchError("Du kan ikke ha lunsj før du startet på jobb vel? 🤔");
+    } else if (!hadLunch && newTotalHoursWorked >= 5.5) {
+      setError(
+        "Obs: Du har krav på lunsj når du har jobbet mer enn 5.5 timer."
+      );
+    } else if (hadLunch && newTotalHoursWorked < lunchDuration) {
+      setError(
+        "Du har jobbet mindre enn 0.5 timer. Det er kortere enn lunsjen din."
+      );
+    } else if (lunchSplit && !workedTillNextDay) {
+      setError("Du kan ikke ha lunsj utenom arbeidstid.");
+    } else if (
+      !workedTillNextDay &&
+      hadLunchTodayOnly &&
+      (lunchStartTimeConverted < startTimeConverted ||
+        lunchEndTimeConverted > endTimeConverted)
+    ) {
+      setError("Du kan ikke ha lunsj utenom arbeidstid.");
+    } else if (
+      hadLunchNextDayOnly &&
+      lunchEndTimeConverted > endTimeConverted
+    ) {
+      setError("Du kan ikke ha lunsj utenom arbeidstid.");
     } else {
-      setLunchError(undefined);
+      setError(undefined);
     }
 
     props.onChange({
@@ -146,13 +181,13 @@ const Day = (props: IDayProps) => {
       eveningHours: newEveningHours,
       weekendHours: newWeekendHours,
       date: props.date,
-      error: lunchError !== undefined,
+      error: error !== undefined,
     });
   };
 
   useEffect(() => {
-    calc2();
-  }, [startTime, endTime, hadLunch, lunchTime, workedThatDay]);
+    calculateValues();
+  }, [startTime, endTime, hadLunch, lunchStartTime, workedThatDay]);
 
   const renderTitle = () => {
     const day = Days.find((x) => x.key === props.date.getDay());
@@ -246,17 +281,23 @@ const Day = (props: IDayProps) => {
             <Grid.Column>
               <Header as="h4">Tidspunkt for lunsj</Header>
               <TimePicker
-                value={lunchTime}
-                min={{ hour: startTime.hour + 3, minute: startTime.minute }}
-                max={workedTillNextDay ? { hour: 23, minute: 30 } : endTime}
+                value={lunchStartTime}
                 onChange={(time: Time): void => {
                   setLunchTime(time);
                 }}
               />
-              {lunchError && <p style={{ color: "red" }}>{lunchError}</p>}
             </Grid.Column>
           )}
         </Grid>
+        {error && (
+          <Message icon negative>
+            <Icon name="exclamation triangle" />
+            <Message.Content>
+              <Message.Header>Noe er feil</Message.Header>
+              {error}
+            </Message.Content>
+          </Message>
+        )}
         <p>
           Du jobbet fra {String(startTime.hour).padStart(2, "0")}:
           {String(startTime.minute).padStart(2, "0")} til{" "}
@@ -264,6 +305,7 @@ const Day = (props: IDayProps) => {
           {String(endTime.minute).padStart(2, "0")}
           {workedTillNextDay && " dagen etter"}.{" "}
         </p>
+
         <Divider />
         <Grid doubling columns={4}>
           <Grid.Column>
