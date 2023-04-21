@@ -16,17 +16,6 @@ import DatePicker from "react-datepicker";
 
 import "react-datepicker/dist/react-datepicker.css";
 
-function getDaysInMonth(month: number, year: number): Array<Date> {
-  var date = new Date(year, month, 1);
-  var days = [];
-  while (date.getMonth() === month) {
-    days.push(new Date(date));
-    date.setDate(date.getDate() + 1);
-  }
-
-  return days;
-}
-
 function getDaysInRange(startDate: Date, endDate: Date): Date[] {
   const days = [];
   let currentDate = new Date(startDate);
@@ -243,6 +232,10 @@ function App() {
               />
               <p>dagen etter.</p>
             </div>
+            <p>
+              Husk at denne appen ikke tar hensyn til endring mellom sommertid
+              og vintertid.
+            </p>
           </Segment>
           {renderPage()}
         </Segment>
