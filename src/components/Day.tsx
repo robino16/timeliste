@@ -15,6 +15,9 @@ import TimePicker from "./TimePicker";
 interface IDayProps {
   date: Date;
   onChange: (value: DayValue) => void;
+  eveningStarts: number;
+  eveningEnds: number;
+  tomorrowIsPublicHoliday: boolean;
 }
 
 const Day = (props: IDayProps) => {
@@ -27,9 +30,11 @@ const Day = (props: IDayProps) => {
     minute: 0,
   });
   const [hadLunch, setHadLunch] = useState<boolean>(true);
+  const [isPublicHoliday, setIsPublicHoliday] = useState<boolean>(false);
   const [totalHoursWorked, setTotalHoursWorked] = useState<number>(0);
   const [eveningHours, setEveningHours] = useState<number>(0);
   const [weekendHours, setWeekendHours] = useState<number>(0);
+  const [publicHolidayHours, setPublicHolidayHours] = useState<number>(0);
   const [workedTillNextDay, setWorkedTillNextDay] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
@@ -51,6 +56,8 @@ const Day = (props: IDayProps) => {
         weekendHours: 0.0,
         date: props.date,
         error: false,
+        isPublicHoliday: isPublicHoliday,
+        publicHolidayHours: 0.0,
       });
 
       return;
@@ -68,8 +75,8 @@ const Day = (props: IDayProps) => {
     const lunchSplit = lunchEndTimeConverted < lunchStartTimeConverted;
     const hadLunchTodayOnly = lunchStartTimeConverted > startTimeConverted;
     const hadLunchNextDayOnly = lunchEndTimeConverted < startTimeConverted;
-    const timeWhenEveningStarts = 17; // o'clock
-    const timeWhenEveningEnds = 6; // o'clock (next day)
+    const timeWhenEveningStarts = props.eveningStarts; // o'clock
+    const timeWhenEveningEnds = props.eveningEnds; // o'clock (next day)
     // we simply assume you've worked to the next day if endTime < startTime
     // because who would ever work more than 24 hours?
     const newWorkedTillNextDay = endTimeConverted < startTimeConverted;
@@ -105,15 +112,21 @@ const Day = (props: IDayProps) => {
     var newTotalHoursWorked = 0.0;
     var newEveningHours = 0.0;
     var newWeekendHours = 0.0;
+    var newPublicHolidayHours = 0.0;
     if (newWorkedTillNextDay) {
       const hoursWorkedToday = 24 - startTimeConverted - todaysLunchTime;
       const hoursWorkedNextDay = endTimeConverted - nextDayLunchTime;
       newTotalHoursWorked = hoursWorkedToday + hoursWorkedNextDay;
-      if (startDayIsWeekend) {
+      // we add either public holiday hours or weekend hours, not both
+      if (isPublicHoliday) {
+        newPublicHolidayHours += hoursWorkedToday;
+      } else if (startDayIsWeekend) {
         newWeekendHours += hoursWorkedToday;
       }
 
-      if (endDayIsWeekend) {
+      if (props.tomorrowIsPublicHoliday) {
+        newPublicHolidayHours += hoursWorkedNextDay;
+      } else if (endDayIsWeekend) {
         newWeekendHours += hoursWorkedNextDay;
       }
 
@@ -129,7 +142,9 @@ const Day = (props: IDayProps) => {
           0,
           endTimeConverted - Math.max(timeWhenEveningStarts, startTimeConverted)
         ) - lunchTimeInEvening;
-      if (startDayIsWeekend) {
+      if (isPublicHoliday) {
+        newPublicHolidayHours += newTotalHoursWorked;
+      } else if (startDayIsWeekend) {
         newWeekendHours += newTotalHoursWorked;
       }
     }
@@ -137,11 +152,13 @@ const Day = (props: IDayProps) => {
     newTotalHoursWorked = Math.max(0, newTotalHoursWorked);
     newEveningHours = Math.max(0, newEveningHours);
     newWeekendHours = Math.max(0, newWeekendHours);
+    newPublicHolidayHours = Math.max(0, newPublicHolidayHours);
 
     setTotalHoursWorked(newTotalHoursWorked);
     setEveningHours(newEveningHours);
     setWeekendHours(newWeekendHours);
     setWorkedTillNextDay(newWorkedTillNextDay);
+    setPublicHolidayHours(newPublicHolidayHours);
 
     if (newTotalHoursWorked === 0) {
       setError("Du kan ikke ha jobbet i null timer.");
@@ -182,59 +199,86 @@ const Day = (props: IDayProps) => {
       weekendHours: newWeekendHours,
       date: props.date,
       error: error !== undefined,
+      isPublicHoliday: isPublicHoliday,
+      publicHolidayHours: newPublicHolidayHours,
     });
   };
 
   useEffect(() => {
     calculateValues();
-  }, [startTime, endTime, hadLunch, lunchStartTime, workedThatDay]);
+  }, [
+    startTime,
+    endTime,
+    hadLunch,
+    lunchStartTime,
+    workedThatDay,
+    props.eveningStarts,
+    props.eveningEnds,
+    isPublicHoliday,
+    props.tomorrowIsPublicHoliday,
+  ]);
 
   const renderTitle = () => {
     const day = Days.find((x) => x.key === props.date.getDay());
     return (
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <Header as="h3" style={{ opacity: workedThatDay ? "1.0" : "0.4" }}>
+        <Header
+          as="h3"
+          style={{
+            opacity: workedThatDay ? "1.0" : "0.4",
+            color: isPublicHoliday ? "red" : "black",
+          }}
+        >
           {day?.text} {props.date.getDate()}.{" "}
           {Months.find((x) => x.value - 1 === props.date.getMonth())?.text}{" "}
           {props.date.getFullYear()}
         </Header>
 
-        {!workedThatDay && (
-          <Button
-            primary
-            onClick={() => {
-              setHadLunch(true);
-              setHidden(false);
-              setWorkedThatDay(true);
-            }}
-          >
-            <Icon name="plus" />
-            Legg til
-          </Button>
-        )}
+        <div style={{ display: "flex" }}>
+          <Checkbox
+            style={{ marginRight: "2rem" }}
+            label="Dette er en helligdag"
+            checked={isPublicHoliday}
+            onChange={(e, data) => setIsPublicHoliday(!isPublicHoliday)}
+          />
 
-        {workedThatDay && (
-          <div>
+          {!workedThatDay && (
             <Button
-              onClick={() => setHidden(!hidden)}
-              style={{ marginBottom: "1rem" }}
-            >
-              <Icon name={hidden ? `angle down` : `angle up`} />
-              {hidden ? "Vis" : "Skjul"}
-            </Button>
-
-            <Button
+              primary
               onClick={() => {
-                setWorkedThatDay(false);
+                setHadLunch(true);
                 setHidden(false);
+                setWorkedThatDay(true);
               }}
-              style={{ marginBottom: "1rem" }}
             >
-              <Icon name="times" />
-              Fjern
+              <Icon name="plus" />
+              Legg til
             </Button>
-          </div>
-        )}
+          )}
+
+          {workedThatDay && (
+            <div>
+              <Button
+                onClick={() => setHidden(!hidden)}
+                style={{ marginBottom: "1rem" }}
+              >
+                <Icon name={hidden ? `angle down` : `angle up`} />
+                {hidden ? "Vis" : "Skjul"}
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setWorkedThatDay(false);
+                  setHidden(false);
+                }}
+                style={{ marginBottom: "1rem" }}
+              >
+                <Icon name="times" />
+                Fjern
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -307,7 +351,7 @@ const Day = (props: IDayProps) => {
         </p>
 
         <Divider />
-        <Grid doubling columns={4}>
+        <Grid doubling columns={5}>
           <Grid.Column>
             <Header as="h5">Arbeid</Header>
             <p>{totalHoursWorked.toFixed(2)} timer.</p>
@@ -326,6 +370,11 @@ const Day = (props: IDayProps) => {
           <Grid.Column>
             <Header as="h5">Helgetillegg</Header>
             <p>{weekendHours.toFixed(2)} timer.</p>
+          </Grid.Column>
+
+          <Grid.Column>
+            <Header as="h5">Helligdagstillegg</Header>
+            <p>{publicHolidayHours.toFixed(2)} timer.</p>
           </Grid.Column>
         </Grid>
       </>

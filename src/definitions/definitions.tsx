@@ -9,6 +9,8 @@ export interface DayValue {
   totalHoursWorked: number;
   eveningHours: number;
   weekendHours: number;
+  publicHolidayHours: number;
+  isPublicHoliday: boolean;
   error: boolean;
 }
 
