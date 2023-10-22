@@ -34,7 +34,7 @@ const TimePicker = (props: TimePickerProps) => {
           }
           setHour(newVal);
         }}
-      ></Input>
+      />
       <Input
         type="number"
         value={minute}
@@ -60,7 +60,7 @@ const TimePicker = (props: TimePickerProps) => {
           }
           setMinute(newVal);
         }}
-      ></Input>
+      />
     </div>
   );
 };

@@ -244,7 +244,7 @@ const Day = (props: IDayProps) => {
 
           {!workedThatDay && (
             <Button
-              primary
+              color="pink"
               onClick={() => {
                 setHadLunch(true);
                 setHidden(false);
@@ -260,6 +260,7 @@ const Day = (props: IDayProps) => {
             <div>
               <Button
                 onClick={() => setHidden(!hidden)}
+                color="pink"
                 style={{ marginBottom: "1rem" }}
               >
                 <Icon name={hidden ? `angle down` : `angle up`} />
@@ -267,6 +268,7 @@ const Day = (props: IDayProps) => {
               </Button>
 
               <Button
+                color="black"
                 onClick={() => {
                   setWorkedThatDay(false);
                   setHidden(false);
@@ -382,7 +384,7 @@ const Day = (props: IDayProps) => {
   };
 
   return (
-    <Segment key={props.date.getTime()} style={{ backgroundColor: "#eee" }}>
+    <Segment key={props.date.getTime()} style={{ backgroundColor: "#fcd8ea" }}>
       {renderTitle()}
       {workedThatDay && !hidden && render()}
       {workedThatDay && hidden && (

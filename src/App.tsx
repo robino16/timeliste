@@ -83,7 +83,7 @@ function App() {
   const renderPage = () => {
     return (
       <>
-        <Segment style={{ backgroundColor: "#eee" }}>
+        <Segment style={{ backgroundColor: "#fcd8ea" }}>
           <Header as="h3">Oppsummering</Header>
           <p>Denne informasjonen kan du sende til lederen din.</p>
           <Grid doubling columns={6}>
@@ -120,7 +120,7 @@ function App() {
           )}
           <Grid doubling columns={5}>
             <Grid.Column>
-              <Segment>
+              <Segment style={{ backgroundColor: "#ffe8f3" }}>
                 <Header as="h4">Arbeidstimer</Header>
                 <p style={{ fontSize: "1.5rem" }}>
                   {totalHoursWorked.toFixed(2)}
@@ -129,7 +129,7 @@ function App() {
             </Grid.Column>
 
             <Grid.Column>
-              <Segment>
+              <Segment style={{ backgroundColor: "#ffe8f3" }}>
                 <Header as="h4">Timer med kveldstillegg</Header>
                 <p style={{ fontSize: "1.5rem" }}>
                   {totalEveningHours.toFixed(2)}
@@ -138,7 +138,7 @@ function App() {
             </Grid.Column>
 
             <Grid.Column>
-              <Segment>
+              <Segment style={{ backgroundColor: "#ffe8f3" }}>
                 <Header as="h4">Timer med helgetillegg</Header>
                 <p style={{ fontSize: "1.5rem" }}>
                   {totalWeekendHours.toFixed(2)}
@@ -147,7 +147,7 @@ function App() {
             </Grid.Column>
 
             <Grid.Column>
-              <Segment>
+              <Segment style={{ backgroundColor: "#ffe8f3" }}>
                 <Header as="h4">Timer med helligdagstillegg</Header>
                 <p style={{ fontSize: "1.5rem" }}>
                   {totalPublicHolidayHours.toFixed(2)}
@@ -182,9 +182,9 @@ function App() {
   return (
     <div className="App">
       <Container>
-        <Segment style={{ backgroundColor: "#ccc" }}>
+        <Segment style={{ backgroundColor: "#ff88c3" }}>
           <Header as="h1">Timelistekalkulator</Header>
-          <Segment style={{ backgroundColor: "#eee" }}>
+          <Segment style={{ backgroundColor: "#fcd8ea" }}>
             <Header as="h4">Kveldstillegg</Header>
             <p>Her kan du endre hvordan kveldstillegg skal regnes ut.</p>
             <div style={{ display: "flex" }}>
